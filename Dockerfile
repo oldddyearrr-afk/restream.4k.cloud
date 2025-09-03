@@ -28,9 +28,10 @@ RUN mkdir -p stream/hls stream/logs \
     && chmod +x perfect_stream.sh \
     && chmod 755 stream/hls
 
-# تعديل إعدادات nginx للعمل مع Koyeb
-RUN sed -i 's/listen 5000;/listen 8000;/g' stream/nginx.conf \
-    && sed -i 's|/home/runner/workspace/||g' stream/nginx.conf
+# نسخ nginx config للمكان الصحيح وتعديله
+RUN cp stream/nginx.conf /etc/nginx/nginx.conf \
+    && sed -i 's/listen 5000;/listen 8000;/g' /etc/nginx/nginx.conf \
+    && sed -i 's|/home/runner/workspace/|/app/|g' /etc/nginx/nginx.conf
 
 # تعريف البورت
 EXPOSE 8000
