@@ -1,7 +1,5 @@
-
 FROM ubuntu:22.04
 
-# تعيين متغيرات البيئة لتجنب التفاعل أثناء التثبيت
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 ENV PORT=8000
@@ -23,13 +21,13 @@ WORKDIR /app
 COPY . .
 
 # إنشاء المجلدات المطلوبة
-RUN cp stream/nginx.conf /etc/nginx/nginx.conf \
-    && sed -i 's|/home/runner/workspace/|/app/|g' /etc/nginx/nginx.conf
+RUN mkdir -p stream/hls stream/logs \
+    && mkdir -p /var/log/nginx /var/lib/nginx /run \
+    && chmod +x perfect_stream.sh \
+    && chmod 755 stream/hls
 
-# نسخ nginx config للمكان الصحيح وتعديله
-RUN cp stream/nginx.conf /etc/nginx/nginx.conf \
-    && sed -i 's/listen 5000;/listen 8000;/g' /etc/nginx/nginx.conf \
-    && sed -i 's|/home/runner/workspace/|/app/|g' /etc/nginx/nginx.conf
+# نسخ nginx.conf للمكان الصحيح
+RUN cp stream/nginx.conf /etc/nginx/nginx.conf
 
 # تعريف البورت
 EXPOSE 8000
