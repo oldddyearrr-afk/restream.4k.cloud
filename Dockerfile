@@ -23,10 +23,8 @@ WORKDIR /app
 COPY . .
 
 # إنشاء المجلدات المطلوبة
-RUN mkdir -p stream/hls stream/logs \
-    && mkdir -p /var/log/nginx /var/lib/nginx /run \
-    && chmod +x perfect_stream.sh \
-    && chmod 755 stream/hls
+RUN cp stream/nginx.conf /etc/nginx/nginx.conf \
+    && sed -i 's|/home/runner/workspace/|/app/|g' /etc/nginx/nginx.conf
 
 # نسخ nginx config للمكان الصحيح وتعديله
 RUN cp stream/nginx.conf /etc/nginx/nginx.conf \
