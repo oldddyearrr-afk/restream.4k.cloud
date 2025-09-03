@@ -1,0 +1,21 @@
+
+version: "2"
+services:
+  - name: stream-server
+    type: web
+    build:
+      type: docker
+      dockerfile: Dockerfile
+    ports:
+      - port: 8000
+        protocol: http
+    env:
+      - name: PORT
+        value: "8000"
+    health_check:
+      http:
+        path: /health
+        port: 8000
+    regions:
+      - fra
+    instance_type: nano
