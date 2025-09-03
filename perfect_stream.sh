@@ -12,16 +12,18 @@ WORK_DIR="/app"
 STREAM_DIR="$WORK_DIR/stream"
 HLS_DIR="$STREAM_DIR/hls"
 LOGS_DIR="$STREAM_DIR/logs"
-NGINX_CONF="$STREAM_DIR/nginx.conf"
+NGINX_CONF="/etc/nginx/nginx.conf"
 PORT=${PORT:-8000}
 
 echo "🚀 Perfect Stream Server v2.0"
 echo "📁 Stream dir: $STREAM_DIR"
 echo "🌐 Port: $PORT"
 
+# استبدال البورت داخل Nginx config
+sed -i "s/PORT_PLACEHOLDER/$PORT/" "$NGINX_CONF"
+
 # إنشاء مجلدات وتنظيف سريع
 mkdir -p "$LOGS_DIR" 2>/dev/null || true
-# تنظيف سريع للملفات القديمة
 find "$HLS_DIR" -name "*.ts" -delete 2>/dev/null || true
 find "$HLS_DIR" -name "*.m3u8" -delete 2>/dev/null || true
 rm -f "$LOGS_DIR"/*.log "$LOGS_DIR"/*.pid 2>/dev/null || true
@@ -32,7 +34,6 @@ NGINX_PID=$!
 sleep 2
 
 echo "📺 Starting FFmpeg (no-error mode)..."
-# إعدادات FFmpeg محسنة بدون أخطاء
 ffmpeg -hide_banner -loglevel error \
     -fflags +genpts \
     -user_agent "Mozilla/5.0 (compatible; Stream/1.0)" \
@@ -47,9 +48,8 @@ ffmpeg -hide_banner -loglevel error \
     -f hls \
     -hls_time 4 \
     -hls_list_size 5 \
-    -hls_flags append_list \
+    -hls_flags delete_segments+independent_segments \
     -hls_segment_filename "$HLS_DIR/seg_%03d.ts" \
-    -method PUT \
     "$HLS_DIR/playlist.m3u8" &
 
 FFMPEG_PID=$!
@@ -59,7 +59,7 @@ echo "🌐 Web: http://0.0.0.0:$PORT"
 echo "📺 Stream: http://0.0.0.0:$PORT/hls/playlist.m3u8"
 echo "📊 FFmpeg: $FFMPEG_PID | Nginx: $NGINX_PID"
 
-# دالة مراقبة FFmpeg وإعادة التشغيل التلقائي
+# مراقبة FFmpeg + تنظيف segments
 monitor_ffmpeg() {
     while true; do
         sleep 30
@@ -79,9 +79,8 @@ monitor_ffmpeg() {
                 -f hls \
                 -hls_time 4 \
                 -hls_list_size 5 \
-                -hls_flags append_list \
+                -hls_flags delete_segments+independent_segments \
                 -hls_segment_filename "$HLS_DIR/seg_%03d.ts" \
-                -method PUT \
                 "$HLS_DIR/playlist.m3u8" &
             FFMPEG_PID=$!
             echo "✅ FFmpeg restarted with PID: $FFMPEG_PID"
@@ -89,29 +88,22 @@ monitor_ffmpeg() {
     done
 }
 
-# تنظيف ذكي للملفات القديمة - يبقي آخر 10 ملفات فقط
 cleanup_segments() {
     while true; do
         sleep 20
-        # عد جميع ملفات segments الموجودة
         SEGMENT_COUNT=$(ls -1 "$HLS_DIR"/seg_*.ts 2>/dev/null | wc -l)
-        
         if [ "$SEGMENT_COUNT" -gt 10 ]; then
-            echo "🧹 Cleaning old segments... (found $SEGMENT_COUNT files, keeping 10)"
-            # احتفظ بآخر 10 ملفات واحذف الباقي
+            echo "🧹 Cleaning old segments... (found $SEGMENT_COUNT, keeping 10)"
             ls -1t "$HLS_DIR"/seg_*.ts | tail -n +11 | xargs rm -f 2>/dev/null || true
-            echo "✅ Cleanup complete - kept latest 10 segments"
         fi
     done
 }
 
-# تشغيل المراقبة والتنظيف في الخلفية
 monitor_ffmpeg &
 MONITOR_PID=$!
 cleanup_segments &
 CLEANUP_PID=$!
 
-# إنهاء نظيف
 cleanup() {
     echo "🛑 Stopping all services..."
     kill $FFMPEG_PID 2>/dev/null || true
@@ -124,13 +116,6 @@ cleanup() {
 
 trap cleanup SIGTERM SIGINT
 
-# استمرار العمل بشكل مثالي
-echo "🔄 Running perfectly... Press Ctrl+C to stop"
 while true; do
     sleep 60
-    # فحص صحة العمليات فقط
-    if ! kill -0 $FFMPEG_PID 2>/dev/null; then
-        echo "❌ FFmpeg stopped - exiting gracefully..."
-        cleanup
-    fi
 done
