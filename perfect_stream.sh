@@ -27,7 +27,7 @@ find "$HLS_DIR" -name "*.m3u8" -delete 2>/dev/null || true
 rm -f "$LOGS_DIR"/*.log "$LOGS_DIR"/*.pid 2>/dev/null || true
 
 echo "🌐 Starting nginx (perfect config)..."
-nginx -c "$NGINX_CONF" &
+nginx &
 NGINX_PID=$!
 sleep 2
 
